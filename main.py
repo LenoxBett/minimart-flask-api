@@ -1,7 +1,16 @@
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+import sentry_sdk
+from models import db, Product, Sale, Purchase, User
+
+sentry_sdk.init(
+    dsn="https://0df18c4882363a572e85b90433bc23c6@o4509983900565504.ingest.us.sentry.io/4509984025280512",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
+
 
 app = Flask(__name__)
 
@@ -11,61 +20,16 @@ jwt = JWTManager(app)
 
 # Database setup (SQLite file: sales.db)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sales.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+db.init_app(app)
+with app.app_context():
+    db.create_all()
 
 # In-memory users list for demo purposes
 users = []
 
-# ________MODELS_______
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "price": self.price,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-
-class Sale(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, nullable=False)
-    quantity = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "product_id": self.product_id,
-            "quantity": self.quantity,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-
-class Purchase(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, nullable=False)
-    quantity = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "product_id": self.product_id,
-            "quantity": self.quantity,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-
-# Create tables
-with app.app_context():
-    db.create_all()
 
 
 # ---------------- Products Routes ----------------
